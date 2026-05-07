@@ -102,6 +102,7 @@ class Kon(CommandsMixin, SessionUIMixin, App[None]):
         Binding("ctrl+d", "handle_ctrl_d", "Delete session", priority=True),
         ("escape", "interrupt_agent", "Interrupt"),
         ("ctrl+t", "toggle_thinking", "Toggle thinking"),
+        Binding("ctrl+o", "toggle_tool_output", "Toggle tool output", priority=True),
         Binding("ctrl+shift+t", "cycle_thinking_level", "Cycle thinking level", priority=True),
         Binding("shift+tab", "cycle_permission_mode", "Cycle permission mode", priority=True),
     ]
@@ -663,6 +664,12 @@ class Kon(CommandsMixin, SessionUIMixin, App[None]):
         status = self.query_one("#status-line", StatusLine)
         status.hide_exit_hint()
 
+    def action_toggle_tool_output(self) -> None:
+        chat = self.query_one("#chat-log", ChatLog)
+        expanded = chat.toggle_tool_output_expanded()
+        status = "expanded" if expanded else "collapsed"
+        chat.show_status(f"Tool output {status}")
+
     def action_toggle_thinking(self) -> None:
         self._hide_thinking = not self._hide_thinking
         chat = self.query_one("#chat-log", ChatLog)
@@ -942,12 +949,17 @@ class Kon(CommandsMixin, SessionUIMixin, App[None]):
                                 markup = True
                                 ui_summary = r.ui_summary
                                 ui_details = r.ui_details
+                                ui_details_full = r.ui_details_full
                                 if ui_summary is None and ui_details is None and r.content:
-                                    ui_details = self._format_tool_result_text(r)
-                                    markup = False
+                                    ui_details, ui_details_full = self._format_tool_result_text(r)
                                 success = not r.is_error
                                 chat.set_tool_result(
-                                    id, ui_summary, ui_details, success, markup=markup
+                                    id,
+                                    ui_summary,
+                                    ui_details,
+                                    success,
+                                    markup=markup,
+                                    ui_details_full=ui_details_full,
                                 )
                             if fc:
                                 info_bar.update_file_changes(fc.path, fc.added, fc.removed)

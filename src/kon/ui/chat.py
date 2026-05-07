@@ -54,6 +54,7 @@ class ChatLog(VerticalScroll):
         super().__init__(**kwargs)
         self._current_block: ThinkingBlock | ContentBlock | None = None
         self._tool_blocks: dict[str, ToolBlock] = {}
+        self._tool_output_expanded = False
         self._anchor_released: bool = False
         self._last_status_label: Label | None = None
         self._spinner_label: Label | None = None
@@ -108,6 +109,7 @@ class ChatLog(VerticalScroll):
         if children:
             await self.remove_children(children)
         self._tool_blocks.clear()
+        self._tool_output_expanded = False
         self._current_block = None
         self._last_status_label = None
 
@@ -201,6 +203,7 @@ class ChatLog(VerticalScroll):
         append_hint("alt+enter", "to steer if busy")
         append_hint("shift+tab", "to cycle modes")
         append_hint("ctrl+t", "to show/hide thinking")
+        append_hint("ctrl+o", "to expand tools")
         append_hint("ctrl+shift+t", "to cycle thinking", trailing_newline=False)
 
         info_label = Label(info_text)
@@ -321,6 +324,7 @@ class ChatLog(VerticalScroll):
             ("escape", "Cancel completion / interrupt agent"),
             ("ctrl+c", "Clear input (press twice to quit)"),
             ("ctrl+t", "Toggle thinking visibility"),
+            ("ctrl+o", "Toggle tool output expansion"),
             ("ctrl+shift+t", "Cycle thinking levels"),
             ("shift+tab", "Cycle permission mode"),
         ]
@@ -403,6 +407,7 @@ class ChatLog(VerticalScroll):
         self, name: str, tool_id: str, call_msg: str | None = None, icon: str = "→"
     ) -> ToolBlock:
         block = ToolBlock(name=name, call_msg=call_msg, icon=icon)
+        block.set_expanded(self._tool_output_expanded)
 
         # Consecutive tool calls without detail output render compactly (no
         # margin). Tools with detail output (diffs, bash output, etc.) always
@@ -433,10 +438,13 @@ class ChatLog(VerticalScroll):
         ui_details: str | None,
         success: bool,
         markup: bool = True,
+        ui_details_full: str | None = None,
     ) -> None:
         block = self._tool_blocks.get(tool_id)
         if block:
-            block.set_result(ui_summary, ui_details, success, markup=markup)
+            block.set_result(
+                ui_summary, ui_details, success, markup=markup, ui_details_full=ui_details_full
+            )
             if ui_details:
                 # All ToolStartEvents arrive during streaming before any
                 # results, so later siblings were mounted compact.  Now that
@@ -457,6 +465,17 @@ class ChatLog(VerticalScroll):
         if next_index >= len(children):
             return None
         return children[next_index]
+
+    def set_tool_output_expanded(self, expanded: bool) -> None:
+        self._tool_output_expanded = expanded
+        for block in self._tool_blocks.values():
+            block.set_expanded(expanded)
+        self._scroll_if_anchored(animate=False)
+
+    def toggle_tool_output_expanded(self) -> bool:
+        expanded = not self._tool_output_expanded
+        self.set_tool_output_expanded(expanded)
+        return expanded
 
     def update_tool_call_msg(self, tool_id: str, call_msg: str) -> None:
         block = self._tool_blocks.get(tool_id)

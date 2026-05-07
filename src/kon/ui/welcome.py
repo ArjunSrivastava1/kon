@@ -29,7 +29,7 @@ _LEFT_HINTS = (
 _RIGHT_HINTS = (
     ("shift+enter", "newline"),
     ("ctrl+t", "thinking"),
-    ("shift+tab", "thinking level"),
+    ("ctrl+o", "tool output"),
     ("↑/↓", "history"),
     ("enter", "queue msg"),
     ("alt+enter", "steer agent"),
